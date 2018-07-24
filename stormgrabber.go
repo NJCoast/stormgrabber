@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,20 +17,30 @@ import (
 func main() {
 	var pathslice []string
 	var fullpath string
+	var rssurl string
+	var noActiveStorm bool = true
 
 	wordPtr := flag.String("dir", ".", "KMZ file download directory")
+	boolPtr := flag.Bool("test", false, "Use the NHC test RSS Feed")
 	flag.Parse()
 	downloadDir := *wordPtr
-	fmt.Println(downloadDir)
 
+	if *boolPtr {
+		rssurl = "https://www.nhc.noaa.gov/rss_examples/gis-at.xml"
+	} else {
+		rssurl = "https://www.nhc.noaa.gov/gis-at.xml"
+	}
+
+	// Parse feed from url
 	fp := gofeed.NewParser()
-	feed, _ := fp.ParseURL("https://www.nhc.noaa.gov/rss_examples/gis-at.xml")
+	feed, _ := fp.ParseURL(rssurl)
 	fmt.Println(feed.Title)
 
 	for _, item := range feed.Items {
 		if strings.Contains(item.Title, "Preliminary Best Track Points [kmz]") {
-			fmt.Println(item.Title)
-			fmt.Println(item.Link)
+			noActiveStorm = false
+			// fmt.Println(item.Title)
+			// fmt.Println(item.Link)
 			//Use url parse and path to get the filename
 			u, err := url.Parse(item.Link)
 			if err != nil {
@@ -42,6 +53,10 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+			log.Println("Downloaded ", fullpath)
+		}
+		if noActiveStorm {
+			log.Println("No Active Storm Download")
 		}
 	}
 
