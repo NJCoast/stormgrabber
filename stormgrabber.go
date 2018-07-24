@@ -8,17 +8,20 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 
 	"github.com/mmcdole/gofeed"
 )
 
+var kmz2geojson = "/Users/cvardema/.local/share/virtualenvs/kmz2geojson--P390FV5/bin/kmz2g"
+
 func main() {
 	var pathslice []string
 	var fullpath string
 	var rssurl string
-	var noActiveStorm bool = true
+	var noActiveStorm = true
 
 	wordPtr := flag.String("dir", ".", "KMZ file download directory")
 	boolPtr := flag.Bool("test", false, "Use the NHC test RSS Feed")
@@ -54,7 +57,21 @@ func main() {
 				panic(err)
 			}
 			log.Println("Downloaded ", fullpath)
+
+			// Convert the downloaded file to geojson
+			cmd := exec.Command(kmz2geojson, fullpath, downloadDir)
+
+			out, err := cmd.Output()
+
+			if err != nil {
+    			log.println(err.Error())
+    			return
+			} else {
+				log.println("Converted kmz to geojson for:" fullpath)
+			}
+
 		}
+
 		if noActiveStorm {
 			log.Println("No Active Storm Download")
 		}
