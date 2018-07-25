@@ -15,7 +15,7 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
-var kmz2geojson = "/Users/cvardema/.local/share/virtualenvs/kmz2geojson--P390FV5/bin/kmz2g"
+var kmz2geojson = "/usr/local/bin/kmz2g"
 
 func main() {
 	var pathslice []string
