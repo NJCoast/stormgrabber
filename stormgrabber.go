@@ -61,22 +61,21 @@ func main() {
 			// Convert the downloaded file to geojson
 			cmd := exec.Command(kmz2geojson, fullpath, downloadDir)
 
-			out, err := cmd.Output()
+			cmdout, cmderr := cmd.Output()
 
 			if err != nil {
-    			log.println(err.Error())
-    			return
+				log.Println(cmderr.Error())
+				return
 			} else {
-				log.println("Converted kmz to geojson for:" fullpath)
+				log.Println("Converted kmz to geojson for:", fullpath, cmdout)
 			}
 
 		}
 
-		if noActiveStorm {
-			log.Println("No Active Storm Download")
-		}
 	}
-
+	if noActiveStorm {
+		log.Println("No Active Storm Download")
+	}
 }
 
 //DownloadFile is a file downloader utility function
