@@ -19,7 +19,9 @@ var kmz2geojson = "/usr/local/bin/kmz2g"
 
 func main() {
 	var pathslice []string
+	var geopathslice []string
 	var fullpath string
+	var geofilepath string
 	var rssurl string
 	var noActiveStorm = true
 
@@ -47,14 +49,21 @@ func main() {
 			//Use url parse and path to get the filename
 			u, err := url.Parse(item.Link)
 			if err != nil {
-				panic(err)
+				log.Fatalln("Failed to parse url for download link item.")
 			}
+			//Generate filepath
 			filename := path.Base(u.RequestURI())
 			pathslice = append(pathslice, downloadDir, "/", filename)
 			fullpath = strings.Join(pathslice, "")
+
+			// Generate geojson file name and path
+			filebase := strings.TrimSuffix(filename, "kmz")
+			geopathslice = append(geopathslice, downloadDir, "/", filebase, "geojson")
+			geofilepath = strings.Join(geopathslice, "")
+
 			err = DownloadFile(fullpath, item.Link)
 			if err != nil {
-				panic(err)
+				log.Fatalln("Failed to download kmz file.")
 			}
 			log.Println("Downloaded ", fullpath)
 
@@ -64,12 +73,22 @@ func main() {
 			cmdout, cmderr := cmd.Output()
 
 			if err != nil {
-				log.Println(cmderr.Error())
-				return
+				log.Fatalln(cmderr.Error())
 			} else {
 				log.Println("Converted kmz to geojson for:", fullpath, cmdout)
 			}
 
+			// Upload geojson file to S3 bucket
+			// Convert the downloaded file to geojson
+			cmd = exec.Command("aws", "cp", geofilepath)
+
+			//cmdout, cmderr = cmd.Output()
+
+			if err != nil {
+				log.Fatalln(cmderr.Error())
+			} else {
+				log.Println("Uploaded to S3: ", geofilepath, cmdout)
+			}
 		}
 
 	}
