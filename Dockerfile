@@ -3,6 +3,9 @@ FROM golang:latest
 # Build stormgrabber binary in container
 WORKDIR /go/src/github.com/NJCoast/stormgrabber/
 RUN go get github.com/mmcdole/gofeed
+RUN go get github.com/aws/aws-sdk-go/aws
+RUN go get github.com/aws/aws-sdk-go/aws/session
+RUN go get github.com/aws/aws-sdk-go/service/s3/s3manager
 
 COPY *.go /go/src/github.com/NJCoast/stormgrabber/
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o stormgrabber .
@@ -11,10 +14,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o stormgrabber .
 FROM alpine:3.7
 
 RUN apk add --update \
-    python \
-    py-pip \
+    python3 \
     git \
-  && pip install git+git://github.com/NJCoast/kmz2geojson.git#egg=kmz2geojson awscli \
+  && pip3 install git+git://github.com/NJCoast/kmz2geojson.git#egg=kmz2geojson awscli \
   && rm -rf /var/cache/apk/*
 
 # Create data directory for downloads
