@@ -237,7 +237,7 @@ func main() {
 				Bucket:      aws.String("simulation.njcoast.us"),
 				Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, name, published.Unix())),
 				ContentType: aws.String("application/json"),
-				Body:        fIn,
+				Body:        bytes.NewReader(data),
 			})
 			if err != nil {
 				log.Fatalln(err)
