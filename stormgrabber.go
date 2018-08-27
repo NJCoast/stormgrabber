@@ -83,7 +83,7 @@ func main() {
 	feed, _ := fp.ParseURL(rssurl)
 
 	// Get Wind Parameters Field
-	wind := make(map[string]int)
+	wind := make(map[string]float64)
 
 	for _, item := range feed.Items {
 		if strings.Contains(item.Title, "Advisory Wind Field [shp]") {
@@ -153,7 +153,7 @@ func main() {
 			}
 
 			for _, feature := range fc.Features {
-				wind[name], _ = feature.PropertyInt("RADII")
+				wind[name], _ = feature.PropertyFloat64("RADII")
 			}
 		}
 	}
