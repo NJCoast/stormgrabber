@@ -110,7 +110,7 @@ func main() {
 			}
 			
 			for _, f := range r.File {
-				if strings.Contains(f.Name, "_initialradii"){
+				if strings.Contains(f.Name, "_forecastradii"){
 					fIn, err := f.Open()
 					if err != nil {
 						log.Fatal(err)
