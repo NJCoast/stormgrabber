@@ -10,11 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"encoding/json"
 	"bytes"
 	"time"
+	"archive/zip"
 	
+	"github.com/paulmach/go.geojson"
 	"github.com/mmcdole/gofeed"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -44,10 +47,6 @@ type Storm struct {
 }
 
 func main() {
-	var pathslice []string
-	var geopathslice []string
-	var fullpath string
-	var geofilepath string
 	var rssurl string
 	var noActiveStorm = true
 
@@ -81,7 +80,82 @@ func main() {
 	// Parse feed from url
 	fp := gofeed.NewParser()
 	feed, _ := fp.ParseURL(rssurl)
-	fmt.Println(feed.Title)
+
+	// Get Wind Parameters Field
+	wind := make(map[string]int)
+
+	for _, item := range feed.Items {
+		if strings.Contains(item.Title, "Advisory Wind Field [shp]") {
+			dummy, name := "", ""
+			fmt.Sscanf(item.Title, "Advisory Wind Field [shp] - %s Storm %s (%s/%s)", &dummy, &name, &dummy, &dummy)
+			name = strings.ToLower(name)
+
+			u, err := url.Parse(item.Link)
+			if err != nil {
+				log.Fatalln("Failed to parse url for download link item.")
+			}
+
+			fullpath := downloadDir + "/" + path.Base(u.RequestURI())
+
+			err = DownloadFile(fullpath, item.Link)
+			if err != nil {
+				log.Fatalln("Failed to download shp file.")
+			}
+			log.Println("Downloaded ", fullpath)
+
+			// Open a zip archive for reading.
+			r, err := zip.OpenReader(fullpath)
+			if err != nil {
+					log.Fatal(err)
+			}
+			
+			for _, f := range r.File {
+				if strings.Contains(f.Name, "_initialradii"){
+					fIn, err := f.Open()
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer fIn.Close()
+
+					fOut, err := os.Create(os.TempDir() + "/wind" + filepath.Ext(f.Name))
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer fOut.Close()
+
+					if _, err = io.Copy(fOut, fIn); err != nil {
+						return
+					}
+				}
+			}
+			r.Close()
+
+			// Convert the downloaded file to geojson
+			cmd := exec.Command("/usr/bin/ogr2ogr", "-f", "GeoJSON", "-t_srs", "crs:84", "wind.geojson", os.TempDir() + "/wind.shp")
+
+			cmdout, cmderr := cmd.Output()
+			if cmderr != nil {
+				log.Fatalln(cmderr.Error(), cmdout)
+			} else {
+				log.Println("Converted shp to geojson for:", fullpath, cmdout)
+			}
+
+			// Parse GeoJSON
+			fIn, err := os.Open("wind.geojson")
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			var fc geojson.FeatureCollection
+			if err := json.NewDecoder(fIn).Decode(&fc); err != nil {
+				log.Fatalln(err)
+			}
+
+			for _, feature := range fc.Features {
+				wind[name], _ = feature.PropertyInt("RADII")
+			}
+		}
+	}
 
 	for _, item := range feed.Items {
 		if strings.Contains(item.Title, "Preliminary Best Track Points [kmz]") {
@@ -117,18 +191,14 @@ func main() {
 				log.Fatalln("Failed to parse url for download link item.")
 			}
 			//Generate filepath
-			filename := path.Base(u.RequestURI())
-			pathslice = append(pathslice, downloadDir, "/", filename)
-			fullpath = strings.Join(pathslice, "")
+			fullpath := downloadDir + "/" + path.Base(u.RequestURI())
 
 			// Generate geojson file name and path
-			filebase := strings.TrimSuffix(filename, "kmz")
-			geopathslice = append(geopathslice, downloadDir, "/", filebase, "geojson")
-			geofilepath = strings.Join(geopathslice, "")
+			geofilepath := downloadDir + "/" + strings.TrimSuffix(path.Base(u.RequestURI()), "kmz") + "geojson"
 
 			err = DownloadFile(fullpath, item.Link)
 			if err != nil {
-				log.Fatalln("Failed to download kmz file.")
+				log.Fatalln("Failed to download kmz file.", item.Link, fullpath)
 			}
 			log.Println("Downloaded ", fullpath)
 
@@ -142,13 +212,27 @@ func main() {
 				log.Println("Converted kmz to geojson for:", fullpath, cmdout)
 			}
 
-			// Upload geojson file to S3 bucket
+			// Parse GeoJSON
 			fIn, err := os.Open(geofilepath)
 			if err != nil {
 				log.Fatalln(err)
 			}
-			defer fIn.Close()
 
+			var fc geojson.FeatureCollection
+			if err := json.NewDecoder(fIn).Decode(&fc); err != nil {
+				log.Fatalln(err)
+			}
+
+			fc.Features[len(fc.Features) - 1].SetProperty("radius", wind[name])
+
+			data, err := json.Marshal(&fc);
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			log.Println(string(data))
+
+			// Upload geojson file to S3 bucket
 			_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
 				ACL:         aws.String("public-read"),
 				Bucket:      aws.String("simulation.njcoast.us"),
