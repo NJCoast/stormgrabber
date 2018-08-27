@@ -27,13 +27,13 @@ import (
 var kmz2geojson = "/usr/bin/kmz2g"
 
 type StormList struct {
-	Active []Storm `json:"active_storms"`
+	Active []*Storm `json:"active_storms"`
 }
 
 func (l *StormList) Contains(name string) *Storm {
 	for i := 0; i < len(l.Active); i++ {
 		if l.Active[i].Name == name {
-			return &l.Active[i]
+			return l.Active[i]
 		}
 	}
 	return nil
@@ -47,9 +47,11 @@ type Storm struct {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
 	var noActiveStorm = true
 
 	boolPtr := flag.Bool("test", false, "Use the NHC test RSS Feed")
+	awsFolder := flag.String("f", "/", "Folder to upload data to")
 	flag.Parse()
 
 	var rssurl string
@@ -64,7 +66,8 @@ func main() {
 	)
 	
 	// Download Current Storm Metadata
-	resp, err := http.Get("https://s3.amazonaws.com/simulation.njcoast.us/metadata.json")
+	log.Println("https://s3.amazonaws.com/simulation.njcoast.us/"+*awsFolder+"/metadata.json")
+	resp, err := http.Get("https://s3.amazonaws.com/simulation.njcoast.us/"+*awsFolder+"/metadata.json")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -176,12 +179,12 @@ func main() {
 
 			// Update storm parameters
 			if storm == nil {
-				storm = &Storm{Name: name, Type: "H", LastUpdated: published, Path: fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/storm/%s/%d/", name, published.Unix())}
+				storm = &Storm{Name: name, Type: "H", LastUpdated: published, Path: fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, name, published.Unix())}
 			}
 			storm.LastUpdated = published
-			storm.Path = fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/storm/%s/%d/", name, published.Unix())
+			storm.Path = fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, name, published.Unix())
 
-			active.Active = append(active.Active, *storm)
+			active.Active = append(active.Active, storm)
 
 			//Use url parse and path to get the filename
 			u, err := url.Parse(item.Link)
@@ -228,13 +231,11 @@ func main() {
 				log.Fatalln(err)
 			}
 
-			log.Println(string(data))
-
 			// Upload geojson file to S3 bucket
 			_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
 				ACL:         aws.String("public-read"),
 				Bucket:      aws.String("simulation.njcoast.us"),
-				Key:         aws.String(fmt.Sprintf("storm/%s/%d/input.geojson", name, published.Unix())),
+				Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, name, published.Unix())),
 				ContentType: aws.String("application/json"),
 				Body:        fIn,
 			})
@@ -262,7 +263,7 @@ func main() {
 	_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
 		ACL:         aws.String("public-read"),
 		Bucket:      aws.String("simulation.njcoast.us"),
-		Key:         aws.String("metadata.json"),
+		Key:         aws.String(*awsFolder+"/metadata.json"),
 		ContentType: aws.String("application/json"),
 		Body:        &buffer,
 	})
