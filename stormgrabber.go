@@ -47,14 +47,12 @@ type Storm struct {
 }
 
 func main() {
-	var rssurl string
 	var noActiveStorm = true
 
-	wordPtr := flag.String("dir", ".", "KMZ file download directory")
 	boolPtr := flag.Bool("test", false, "Use the NHC test RSS Feed")
 	flag.Parse()
-	downloadDir := *wordPtr
 
+	var rssurl string
 	if *boolPtr {
 		rssurl = "https://www.nhc.noaa.gov/rss_examples/gis-at.xml"
 	} else {
@@ -95,7 +93,7 @@ func main() {
 				log.Fatalln("Failed to parse url for download link item.")
 			}
 
-			fullpath := downloadDir + "/" + path.Base(u.RequestURI())
+			fullpath := os.TempDir() + "/" + path.Base(u.RequestURI())
 
 			err = DownloadFile(fullpath, item.Link)
 			if err != nil {
@@ -191,10 +189,10 @@ func main() {
 				log.Fatalln("Failed to parse url for download link item.")
 			}
 			//Generate filepath
-			fullpath := downloadDir + "/" + path.Base(u.RequestURI())
+			fullpath := os.TempDir() + "/" + path.Base(u.RequestURI())
 
 			// Generate geojson file name and path
-			geofilepath := downloadDir + "/" + strings.TrimSuffix(path.Base(u.RequestURI()), "kmz") + "geojson"
+			geofilepath := os.TempDir() + "/" + strings.TrimSuffix(path.Base(u.RequestURI()), "kmz") + "geojson"
 
 			err = DownloadFile(fullpath, item.Link)
 			if err != nil {
@@ -203,7 +201,7 @@ func main() {
 			log.Println("Downloaded ", fullpath)
 
 			// Convert the downloaded file to geojson
-			cmd := exec.Command(kmz2geojson, fullpath, downloadDir)
+			cmd := exec.Command(kmz2geojson, fullpath, os.TempDir())
 
 			cmdout, cmderr := cmd.Output()
 			if cmderr != nil {

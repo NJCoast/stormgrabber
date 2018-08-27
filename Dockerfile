@@ -18,9 +18,6 @@ RUN echo http://nl.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories 
   && apk add --no-cache python3-dev git gdal proj4-dev build-base libxml2-dev libxslt-dev \
   && pip3 install git+git://github.com/NJCoast/kmz2geojson.git#egg=kmz2geojson awscli lxml
 
-# Create data directory for downloads
-RUN mkdir /data
-
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/NJCoast/stormgrabber .
-CMD ["./stormgrabber", "--dir=/data"]
+CMD ["./stormgrabber"]
