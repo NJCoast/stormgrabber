@@ -14,10 +14,12 @@ import (
 	"strings"
 	"encoding/json"
 	"bytes"
+	"regexp"
 	"time"
 	"archive/zip"
 	
-	"github.com/paulmach/go.geojson"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
 	"github.com/mmcdole/gofeed"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -30,9 +32,9 @@ type StormList struct {
 	Active []*Storm `json:"active_storms"`
 }
 
-func (l *StormList) Contains(name string) *Storm {
+func (l *StormList) Contains(code string) *Storm {
 	for i := 0; i < len(l.Active); i++ {
-		if l.Active[i].Name == name {
+		if l.Active[i].Code == code {
 			return l.Active[i]
 		}
 	}
@@ -42,8 +44,19 @@ func (l *StormList) Contains(name string) *Storm {
 type Storm struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
+	Code string `json:"code"`
 	LastUpdated time.Time `json:"last_updated"`
 	Path string `json:"s3_base_path"`
+}
+
+func ExtractWindTitle(title string) (string, string) {
+	result := regexp.MustCompile(`.* Wind Field \[shp\] - .* (\S*)\s\(.*/(\S*)\)`).FindStringSubmatch(title)
+	return strings.ToLower(result[1]), strings.ToLower(result[2])
+}
+
+func ExtractTrackTitle(title string) (string, string) {
+	result := regexp.MustCompile(`.* Best Track Points \[kmz\] - .* (\S*)\s\(.*/(\S*)\)`).FindStringSubmatch(title)
+	return strings.ToLower(result[1]), strings.ToLower(result[2])
 }
 
 func main() {
@@ -86,10 +99,8 @@ func main() {
 	wind := make(map[string]float64)
 
 	for _, item := range feed.Items {
-		if strings.Contains(item.Title, "Advisory Wind Field [shp]") {
-			dummy, name := "", ""
-			fmt.Sscanf(item.Title, "Advisory Wind Field [shp] - %s Storm %s (%s/%s)", &dummy, &name, &dummy, &dummy)
-			name = strings.ToLower(name)
+		if strings.Contains(item.Title, "Wind Field [shp]") {
+			_, code := ExtractWindTitle(item.Title)
 
 			u, err := url.Parse(item.Link)
 			if err != nil {
@@ -153,7 +164,13 @@ func main() {
 			}
 
 			for _, feature := range fc.Features {
-				wind[name], _ = feature.PropertyFloat64("RADII")
+				fValue := feature.Properties.MustFloat64("RADII", 0.0)
+				if fValue == 0.0 {
+					iValue := feature.Properties.MustInt("RADII")
+					wind[code] = float64(iValue) * 1.852001
+				}else{
+					wind[code] = fValue * 1.852001
+				}
 			}
 		}
 	}
@@ -167,24 +184,20 @@ func main() {
 				log.Fatalln(err)
 			}
 
-			dummy, name := "", ""
-			fmt.Sscanf(item.Title, "Preliminary Best Track Points [kmz] - %s Storm %s (%s/%s)", &dummy, &name, &dummy, &dummy)
-			name = strings.ToLower(name)
+			name, code := ExtractTrackTitle(item.Title)
 
 			// Check if we have this storm and need to update it
-			storm := current.Contains(name)
+			storm := current.Contains(code)
 			if storm != nil && !published.After(storm.LastUpdated) {
 				continue;
 			}
 
 			// Update storm parameters
 			if storm == nil {
-				storm = &Storm{Name: name, Type: "H", LastUpdated: published, Path: fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, name, published.Unix())}
+				storm = &Storm{Name: name, Type: "H", Code: code, LastUpdated: published, Path: fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, code, published.Unix())}
 			}
 			storm.LastUpdated = published
-			storm.Path = fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, name, published.Unix())
-
-			active.Active = append(active.Active, storm)
+			storm.Path = fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, code, published.Unix())
 
 			//Use url parse and path to get the filename
 			u, err := url.Parse(item.Link)
@@ -224,25 +237,44 @@ func main() {
 				log.Fatalln(err)
 			}
 
-			fc.Features[len(fc.Features) - 1].SetProperty("radius", wind[name])
-
-			data, err := json.Marshal(&fc);
-			if err != nil {
-				log.Fatalln(err)
+			fc.Features[len(fc.Features) - 1].Properties["radius"] = wind[code]
+			
+			inBounds := false
+			boundary := orb.Bound{Min: orb.Point{-77, 34}, Max: orb.Point{-63, 45}}
+			for _, f := range fc.Features {
+				log.Println(f.Geometry.(orb.Point), boundary)
+				if boundary.Contains(f.Geometry.(orb.Point)) {
+					inBounds = true
+				}
 			}
 
-			// Upload geojson file to S3 bucket
-			_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
-				ACL:         aws.String("public-read"),
-				Bucket:      aws.String("simulation.njcoast.us"),
-				Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, name, published.Unix())),
-				ContentType: aws.String("application/json"),
-				Body:        bytes.NewReader(data),
-			})
-			if err != nil {
-				log.Fatalln(err)
-			} else {
-				log.Println("Uploaded to S3: ", geofilepath, cmdout)
+			// Ignore boundary for now
+			inBounds = true
+
+			if inBounds {
+				log.Printf("Storm %s(%s) currently in bounds.\n", name, code)
+				active.Active = append(active.Active, storm)
+				
+				data, err := json.Marshal(&fc);
+				if err != nil {
+					log.Fatalln(err)
+				}
+
+				// Upload geojson file to S3 bucket
+				_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
+					ACL:         aws.String("public-read"),
+					Bucket:      aws.String("simulation.njcoast.us"),
+					Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, code, published.Unix())),
+					ContentType: aws.String("application/json"),
+					Body:        bytes.NewReader(data),
+				})
+				if err != nil {
+					log.Fatalln(err)
+				} else {
+					log.Println("Uploaded to S3: ", geofilepath, cmdout)
+				}
+			}else{
+				log.Printf("Storm %s(%s) currently out of bounds.\n", name, code)
 			}
 		}
 	}

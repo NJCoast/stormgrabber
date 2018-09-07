@@ -6,9 +6,10 @@ RUN go get github.com/mmcdole/gofeed
 RUN go get github.com/aws/aws-sdk-go/aws
 RUN go get github.com/aws/aws-sdk-go/aws/session
 RUN go get github.com/aws/aws-sdk-go/service/s3/s3manager
-RUN go get github.com/paulmach/go.geojson
+RUN go get github.com/paulmach/orb
 
 COPY *.go /go/src/github.com/NJCoast/stormgrabber/
+RUN go test ./...
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o stormgrabber .
 
 # Deploy Stormgrabber Container
