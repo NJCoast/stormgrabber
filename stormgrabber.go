@@ -281,7 +281,7 @@ func main() {
 
 	// Add any storms that had an update within the last day
 	for i := 0; i < len(current.Active); i++ {
-		if active.Contains(current.Active[i].Name) == nil && time.Now().Before(current.Active[i].LastUpdated.Add(365 * 24 * time.Hour)) {
+		if active.Contains(current.Active[i].Code) == nil && time.Now().Before(current.Active[i].LastUpdated.Add(365 * 24 * time.Hour)) {
 			active.Active = append(active.Active, current.Active[i])
 		}
 	}
