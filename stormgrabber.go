@@ -59,13 +59,34 @@ func ExtractTrackTitle(title string) (string, string) {
 	return strings.ToLower(result[1]), strings.ToLower(result[2])
 }
 
+func ExtractBounds(lat, lon string) (*orb.Bound, error) {
+	var amin, amax float64
+	if _, err := fmt.Sscanf(lat, "%f,%f", &amin, &amax) {
+		return nil, err
+	}
+
+	var omin, omax float64
+	if _, err := fmt.Sscanf(lon, "%f,%f", &omin, &omax) {
+		return nil, err
+	}
+
+	return &orb.Bound{Min: orb.Point{omin, amin}, Max: orb.Point{omax, amax}}, nil
+}
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
 	var noActiveStorm = true
 
 	boolPtr := flag.Bool("test", false, "Use the NHC test RSS Feed")
 	awsFolder := flag.String("f", "/", "Folder to upload data to")
+	latBound := flag.String("bound-lat", "0.0,90.0", "Bounds of accepted latitude")
+	lonBound := flag.String("bound-lon", "-180.0,180.0", "Bounds of accepted latitude")
 	flag.Parse()
+
+	boundary, err := ExtractBounds(*latBounds, *lonBound)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	var rssurl string
 	if *boolPtr {
@@ -240,7 +261,6 @@ func main() {
 			fc.Features[len(fc.Features) - 1].Properties["radius"] = wind[code]
 			
 			inBounds := false
-			boundary := orb.Bound{Min: orb.Point{-77, 34}, Max: orb.Point{-63, 45}}
 			for _, f := range fc.Features {
 				log.Println(f.Geometry.(orb.Point), boundary)
 				if boundary.Contains(f.Geometry.(orb.Point)) {
