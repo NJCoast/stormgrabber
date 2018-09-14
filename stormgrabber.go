@@ -61,12 +61,12 @@ func ExtractTrackTitle(title string) (string, string) {
 
 func ExtractBounds(lat, lon string) (*orb.Bound, error) {
 	var amin, amax float64
-	if _, err := fmt.Sscanf(lat, "%f,%f", &amin, &amax) {
+	if _, err := fmt.Sscanf(lat, "%f,%f", &amin, &amax); err != nil {
 		return nil, err
 	}
 
 	var omin, omax float64
-	if _, err := fmt.Sscanf(lon, "%f,%f", &omin, &omax) {
+	if _, err := fmt.Sscanf(lon, "%f,%f", &omin, &omax); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func main() {
 	lonBound := flag.String("bound-lon", "-180.0,180.0", "Bounds of accepted latitude")
 	flag.Parse()
 
-	boundary, err := ExtractBounds(*latBounds, *lonBound)
+	boundary, err := ExtractBounds(*latBound, *lonBound)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -267,10 +267,7 @@ func main() {
 					inBounds = true
 				}
 			}
-
-			// Ignore boundary for now
-			inBounds = true
-
+			
 			if inBounds {
 				log.Printf("Storm %s(%s) currently in bounds.\n", name, code)
 				active.Active = append(active.Active, storm)
