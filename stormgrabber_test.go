@@ -8,7 +8,7 @@ func TestWindfieldTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "florence")
 	}
 
-    if code != "al062018" {
+	if code != "al062018" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al062018")
 	}
 
@@ -17,7 +17,7 @@ func TestWindfieldTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "eight")
 	}
 
-    if code != "al082018" {
+	if code != "al082018" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al082018")
 	}
 
@@ -26,7 +26,7 @@ func TestWindfieldTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "andrea")
 	}
 
-    if code != "al012013" {
+	if code != "al012013" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al012013")
 	}
 }
@@ -37,7 +37,7 @@ func TestTrackTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "florence")
 	}
 
-    if code != "al062018" {
+	if code != "al062018" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al062018")
 	}
 
@@ -46,7 +46,7 @@ func TestTrackTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "eight")
 	}
 
-    if code != "al082018" {
+	if code != "al082018" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al082018")
 	}
 
@@ -55,7 +55,7 @@ func TestTrackTitleExtract(t *testing.T) {
 		t.Errorf("Name was incorrect, got: %s, want: %s.", name, "andrea")
 	}
 
-    if code != "al012013" {
+	if code != "al012013" {
 		t.Errorf("Code was incorrect, got: %s, want: %s.", code, "al012013")
 	}
 }
