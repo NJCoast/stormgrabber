@@ -42,11 +42,12 @@ func (l *StormList) Contains(code string) *Storm {
 }
 
 type Storm struct {
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Code        string    `json:"code"`
-	LastUpdated time.Time `json:"last_updated"`
-	Path        string    `json:"s3_base_path"`
+	Name          string    `json:"name"`
+	Type          string    `json:"type"`
+	Code          string    `json:"code"`
+	LastUpdated   time.Time `json:"last_updated"`
+	Path          string    `json:"s3_base_path"`
+	IsOutOfBounds bool      `json:"out_of_bounds"`
 }
 
 func ExtractWindTitle(title string) (string, string) {
@@ -268,30 +269,33 @@ func main() {
 				}
 			}
 
+			storm.IsOutOfBounds = !inBounds
+
 			if inBounds {
 				log.Printf("Storm %s(%s) currently in bounds.\n", name, code)
-				active.Active = append(active.Active, storm)
-
-				data, err := json.Marshal(&fc)
-				if err != nil {
-					log.Fatalln(err)
-				}
-
-				// Upload geojson file to S3 bucket
-				_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
-					ACL:         aws.String("public-read"),
-					Bucket:      aws.String("simulation.njcoast.us"),
-					Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, code, published.Unix())),
-					ContentType: aws.String("application/json"),
-					Body:        bytes.NewReader(data),
-				})
-				if err != nil {
-					log.Fatalln(err)
-				} else {
-					log.Println("Uploaded to S3: ", geofilepath, cmdout)
-				}
 			} else {
 				log.Printf("Storm %s(%s) currently out of bounds.\n", name, code)
+			}
+
+			active.Active = append(active.Active, storm)
+
+			data, err := json.Marshal(&fc)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			// Upload geojson file to S3 bucket
+			_, err = s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
+				ACL:         aws.String("public-read"),
+				Bucket:      aws.String("simulation.njcoast.us"),
+				Key:         aws.String(fmt.Sprintf("%s/storm/%s/%d/input.geojson", *awsFolder, code, published.Unix())),
+				ContentType: aws.String("application/json"),
+				Body:        bytes.NewReader(data),
+			})
+			if err != nil {
+				log.Fatalln(err)
+			} else {
+				log.Println("Uploaded to S3: ", geofilepath, cmdout)
 			}
 		}
 	}
