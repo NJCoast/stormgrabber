@@ -28,10 +28,13 @@ import (
 
 var kmz2geojson = "/usr/bin/kmz2g"
 
+// A StormList contains a list of currently actie storms
 type StormList struct {
 	Active []*Storm `json:"active_storms"`
 }
 
+// Contains searches a StormList for a storm with the requested code.
+// Returns a matching storm on success and nil if it is not found
 func (l *StormList) Contains(code string) *Storm {
 	for i := 0; i < len(l.Active); i++ {
 		if l.Active[i].Code == code {
@@ -41,6 +44,7 @@ func (l *StormList) Contains(code string) *Storm {
 	return nil
 }
 
+// A Storm contains the description of an active storm
 type Storm struct {
 	Name          string    `json:"name"`
 	Type          string    `json:"type"`
@@ -50,16 +54,20 @@ type Storm struct {
 	IsOutOfBounds bool      `json:"out_of_bounds"`
 }
 
+// ExtractWindTitle runs a regex on a provided RSS feed title to extract the storm's name and code.
 func ExtractWindTitle(title string) (string, string) {
 	result := regexp.MustCompile(`.* Wind Field \[shp\] - .* (\S*)\s\(.*/(\S*)\)`).FindStringSubmatch(title)
 	return strings.ToLower(result[1]), strings.ToLower(result[2])
 }
 
+// ExtractTrackTitle runs a regex on a provided RSS feed title to extract the storm's name and code.
 func ExtractTrackTitle(title string) (string, string) {
 	result := regexp.MustCompile(`.* Best Track Points \[kmz\] - .* (\S*)\s\(.*/(\S*)\)`).FindStringSubmatch(title)
 	return strings.ToLower(result[1]), strings.ToLower(result[2])
 }
 
+// ExtractBounds converts a comma seperated latitude and longitude into an orb bounding box.
+// Returns an error if it is unable to parse the provided string
 func ExtractBounds(lat, lon string) (*orb.Bound, error) {
 	var amin, amax float64
 	if _, err := fmt.Sscanf(lat, "%f,%f", &amin, &amax); err != nil {
@@ -329,7 +337,6 @@ func main() {
 //DownloadFile is a file downloader utility function
 // https://golangcode.com/download-a-file-from-a-url/
 func DownloadFile(filepath string, url string) error {
-
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
