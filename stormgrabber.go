@@ -261,14 +261,8 @@ func main() {
 
 			fc.Features[len(fc.Features)-1].Properties["radius"] = wind[code]
 
-			inBounds := false
-			for _, f := range fc.Features {
-				log.Println(f.Geometry.(orb.Point), boundary)
-				if boundary.Contains(f.Geometry.(orb.Point)) {
-					inBounds = true
-				}
-			}
-
+			// Check if storm is in or out of bounds
+			inBounds := boundary.Contains(fc.Features[len(fc.Features)-1].Geometry.(orb.Point))
 			storm.IsOutOfBounds = !inBounds
 
 			if inBounds {
