@@ -82,6 +82,7 @@ func main() {
 	awsFolder := flag.String("f", "/", "Folder to upload data to")
 	latBound := flag.String("bound-lat", "0.0,90.0", "Bounds of accepted latitude")
 	lonBound := flag.String("bound-lon", "-180.0,180.0", "Bounds of accepted latitude")
+	keep := flag.Int("keep", 7, "Days after a storm stops showing up to remove it")
 	flag.Parse()
 
 	boundary, err := ExtractBounds(*latBound, *lonBound)
@@ -296,7 +297,7 @@ func main() {
 
 	// Add any storms that had an update within the last day
 	for i := 0; i < len(current.Active); i++ {
-		if active.Contains(current.Active[i].Code) == nil && time.Now().Before(current.Active[i].LastUpdated.Add(365*24*time.Hour)) {
+		if active.Contains(current.Active[i].Code) == nil && time.Now().Before(current.Active[i].LastUpdated.Add(time.Duration(*keep)*24*time.Hour)) {
 			active.Active = append(active.Active, current.Active[i])
 		}
 	}
