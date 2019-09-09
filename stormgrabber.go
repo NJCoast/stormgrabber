@@ -227,6 +227,7 @@ func main() {
 			if storm == nil {
 				storm = &Storm{Name: name, Type: "H", Code: code, LastUpdated: published, Path: fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, code, published.Unix())}
 			}
+			storm.Name = name
 			storm.LastUpdated = published
 			storm.Path = fmt.Sprintf("https://s3.amazonaws.com/simulation.njcoast.us/%s/storm/%s/%d/", *awsFolder, code, published.Unix())
 
